@@ -3,7 +3,7 @@ import cv2
 import os
 from PIL import Image, ImageTk
 from tkinter import filedialog
-from ctk_config import COLORS, FONTS, PADDING, get_center_position, set_app_icon
+from gui.ctk_config import COLORS, FONTS, PADDING, get_center_position, set_app_icon
 from image_processor import white_balance_gray_world, adjust_exposure, reduce_green_tint
 
 class ImageProcessorGUI(ctk.CTk):
@@ -13,7 +13,7 @@ class ImageProcessorGUI(ctk.CTk):
         # 设置窗口
         self.title("图像处理工具")
         window_width = 1000
-        window_height = 620
+        window_height = 320
         self.geometry(get_center_position(window_width, window_height))
         set_app_icon(self)
 
@@ -114,28 +114,53 @@ class ImageProcessorGUI(ctk.CTk):
 
     def process_images(self):
         if not self.input_dir or not self.output_dir:
+            self.process_button.configure(text="请选择输入和输出目录", fg_color=COLORS["error"])
+            self.after(2000, lambda: self.process_button.configure(text="开始处理", fg_color=COLORS["success"]))
             return
 
-        os.makedirs(self.output_dir, exist_ok=True)
-        
-        for filename in os.listdir(self.input_dir):
-            if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
-                img_path = os.path.join(self.input_dir, filename)
-                img = cv2.imread(img_path)
-                if img is None:
-                    continue
-                
-                # 处理图像
-                img = white_balance_gray_world(img)
-                img = reduce_green_tint(img)
-                img = adjust_exposure(img, target_mean=180)
-                
-                # 保存处理后的图像
-                output_path = os.path.join(self.output_dir, filename)
-                cv2.imwrite(output_path, img)
+        try:
+            os.makedirs(self.output_dir, exist_ok=True)
+            processed_count = 0
+            error_count = 0
+            
+            for filename in os.listdir(self.input_dir):
+                if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+                    try:
+                        img_path = os.path.join(self.input_dir, filename)
+                        img = cv2.imread(img_path)
+                        if img is None:
+                            raise ValueError(f"无法读取图像文件：{filename}")
+                        
+                        # 处理图像
+                        img = white_balance_gray_world(img)
+                        img = reduce_green_tint(img)
+                        img = adjust_exposure(img, target_mean=180)
+                        
+                        # 保存处理后的图像
+                        output_path = os.path.join(self.output_dir, filename)
+                        if not cv2.imwrite(output_path, img):
+                            raise IOError(f"无法保存图像文件：{filename}")
+                        
+                        processed_count += 1
+                    except Exception as e:
+                        error_count += 1
+                        print(f"处理图像 {filename} 时出错：{str(e)}")
 
-        self.process_button.configure(text="处理完成！", fg_color=COLORS["success"])
-        self.after(2000, lambda: self.process_button.configure(text="开始处理"))
+            # 更新处理结果
+            if error_count == 0:
+                result_text = f"处理完成！成功处理 {processed_count} 张图像"
+                button_color = COLORS["success"]
+            else:
+                result_text = f"处理完成，但有 {error_count} 个错误"
+                button_color = COLORS["warning"]
+
+            self.process_button.configure(text=result_text, fg_color=button_color)
+            self.after(2000, lambda: self.process_button.configure(text="开始处理", fg_color=COLORS["success"]))
+
+        except Exception as e:
+            error_msg = f"处理过程出错：{str(e)}"
+            self.process_button.configure(text=error_msg, fg_color=COLORS["error"])
+            self.after(2000, lambda: self.process_button.configure(text="开始处理", fg_color=COLORS["success"]))
 
 if __name__ == "__main__":
     app = ImageProcessorGUI()
