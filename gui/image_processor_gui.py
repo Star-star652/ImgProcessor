@@ -11,7 +11,7 @@ class ImageProcessorGUI(ctk.CTk):
         super().__init__()
 
         # 设置窗口
-        self.title("图像处理工具")
+        self.title("Image Processor")
         window_width = 1000
         window_height = 320
         self.geometry(get_center_position(window_width, window_height))
